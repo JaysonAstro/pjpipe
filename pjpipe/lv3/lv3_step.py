@@ -348,8 +348,8 @@ class Lv3Step:
         meta_params = {}
         for model in asn_file._models:
             model_name = model.meta.filename
-            meta_params[model_name] = [model.meta.observation.exposure_number,
-                                       model.meta.group_id,
+            meta_params[model_name] = [copy.deepcopy(model.meta.observation.exposure_number),
+                                       copy.deepcopy(model.meta.group_id),
                                        ]
 
         # Group up the dithers
@@ -364,9 +364,8 @@ class Lv3Step:
                 model.meta.observation.exposure_number = str(i)
                 model.meta.group_id = ""
 
-        # If needed, degroup the NIRCam modules. Do this by changing the
-        # first letter of the filename to the module, and adding a large
-        # number to the exposure number to degroup them.
+        # If needed, degroup the NIRCam modules. Do this by adding a large
+        # number to the exposure number
         if (
                 band_type == "nircam"
                 and self.tweakreg_degroup_nircam_modules
@@ -385,11 +384,6 @@ class Lv3Step:
                 model.meta.observation.exposure_number = str(exp_no + exp_add)
                 model.meta.group_id = ""
 
-                model_name = list(copy.deepcopy(model.meta.filename))
-                model_name[0] = module
-                model_name = "".join(model_name)
-                model.meta.filename = copy.deepcopy(model_name)
-
         # Degroup the 1/2/3/4 NIRCam shorts, if requested
         if (
                 band_type == "nircam"
@@ -402,30 +396,19 @@ class Lv3Step:
 
                 # Include information from the particular chip if we're in short
                 # mode (i.e. there's a 1-4 in the detector name), and keep
-                # track of this to modify the name later
+                # track of this to modify the group ID
                 exp_add = 0
                 if "1" in detector:
                     exp_add += 49
-                    det = "1"
                 elif "2" in detector:
                     exp_add += 50
-                    det = "2"
                 elif "3" in detector:
                     exp_add += 51
-                    det = "3"
                 elif "4" in detector:
                     exp_add += 52
-                    det = "4"
-                else:
-                    det = "l"
 
                 model.meta.observation.exposure_number = str(exp_no + exp_add)
                 model.meta.group_id = ""
-
-                model_name = list(copy.deepcopy(model.meta.filename))
-                model_name.insert(1, det)
-                model_name = "".join(model_name)
-                model.meta.filename = copy.deepcopy(model_name)
 
         asn_file = tweakreg.run(asn_file)
 
@@ -451,26 +434,20 @@ class Lv3Step:
         else:
             models = asn_file._models
 
-        # Set the name back to "jw" at the start if we're degrouping NIRCam modules
+        # Reset if we're degrouping NIRCam modules
         if (
                 band_type == "nircam"
                 and self.tweakreg_degroup_nircam_modules
         ):
             if use_model_library:
                 for i in models:
-                    model_name = list(copy.deepcopy(models[i].meta.filename))
-                    model_name[0] = "j"
-                    model_name = "".join(model_name)
-                    models[i].meta.filename = copy.deepcopy(model_name)
+                    model_name = models[i].meta.filename
                     models[i].meta.observation.exposure_number = meta_params[model_name][0]
                     models[i].meta.group_id = meta_params[model_name][1]
 
             else:
                 for i, model in enumerate(models):
-                    model_name = list(copy.deepcopy(model.meta.filename))
-                    model_name[0] = "j"
-                    model_name = "".join(model_name)
-                    model.meta.filename = copy.deepcopy(model_name)
+                    model_name = model.meta.filename
                     model.meta.observation.exposure_number = meta_params[model_name][0]
                     model.meta.group_id = meta_params[model_name][1]
 
@@ -482,23 +459,17 @@ class Lv3Step:
 
             if use_model_library:
                 for i in models:
-                    model_name = list(copy.deepcopy(models[i].meta.filename))
-                    model_name.pop(1)
-                    model_name = "".join(model_name)
-                    models[i].meta.filename = copy.deepcopy(model_name)
+                    model_name = models[i].meta.filename
                     models[i].meta.observation.exposure_number = meta_params[model_name][0]
                     models[i].meta.group_id = meta_params[model_name][1]
 
             else:
                 for i, model in enumerate(models):
-                    model_name = list(copy.deepcopy(model.meta.filename))
-                    model_name.pop(1)
-                    model_name = "".join(model_name)
-                    model.meta.filename = copy.deepcopy(model_name)
+                    model_name = model.meta.filename
                     model.meta.observation.exposure_number = meta_params[model_name][0]
                     model.meta.group_id = meta_params[model_name][1]
 
-        # Set meta parameters back to original values to avoid potential weirdness later
+        # Set meta parameters back to original values for group/degrouping of dithers
         if (
                 short_long in self.tweakreg_group_dithers
                 or short_long in self.tweakreg_degroup_dithers
@@ -605,6 +576,16 @@ class Lv3Step:
         im3.skymatch.skip = True
 
         # Run the rest of the level 3 pipeline
+
+        if use_model_library:
+            # Re-instantiate the ModelLibrary, to wipe out any weirdness we might have performed
+            # along the way
+            asn_file = ModelContainer([models[m] for m in models])
+            asn_file = ModelLibrary(asn_file, on_disk=False)
+            if "name" not in asn_file._asn["products"][0]:
+                name = f"{self.target.lower()}_{self.band_type}_lv3_{self.band.lower()}{self.bgr_ext}"
+                asn_file._asn["products"][0]["name"] = copy.deepcopy(name)
+
         im3.run(asn_file)
 
         del im3

@@ -19,6 +19,7 @@ from .utils import (
     level_data,
     save_file,
     make_stacked_image,
+    band_exts,
 )
 
 __all__ = [
@@ -42,4 +43,5 @@ __all__ = [
     "level_data",
     "save_file",
     "make_stacked_image",
+    "band_exts",
 ]

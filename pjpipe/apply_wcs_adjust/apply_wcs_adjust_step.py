@@ -4,8 +4,10 @@ import glob
 import logging
 import multiprocessing as mp
 import os
+import re
 import shutil
 import warnings
+from fnmatch import fnmatch
 from functools import partial
 
 import numpy as np
@@ -14,19 +16,21 @@ from stdatamodels.jwst import datamodels
 from tqdm import tqdm
 from tweakwcs.correctors import JWSTWCSCorrector
 
+from ..utils import band_exts
+
 log = logging.getLogger("stpipe")
 log.addHandler(logging.NullHandler())
 
 
 class ApplyWCSAdjustStep:
     def __init__(
-        self,
-        wcs_adjust,
-        in_dir,
-        out_dir,
-        step_ext,
-        procs,
-        overwrite=False,
+            self,
+            wcs_adjust,
+            in_dir,
+            out_dir,
+            step_ext,
+            procs,
+            overwrite=False,
     ):
         """Apply WCS adjustments to images
 
@@ -92,9 +96,9 @@ class ApplyWCSAdjustStep:
         return True
 
     def run_step(
-        self,
-        files,
-        procs=1,
+            self,
+            files,
+            procs=1,
     ):
         """Wrap paralellism around applying WCS adjusts
 
@@ -110,15 +114,15 @@ class ApplyWCSAdjustStep:
             successes = []
 
             for success in tqdm(
-                pool.imap_unordered(
-                    partial(
-                        self.parallel_wcs_adjust,
+                    pool.imap_unordered(
+                        partial(
+                            self.parallel_wcs_adjust,
+                        ),
+                        files,
                     ),
-                    files,
-                ),
-                ascii=True,
-                desc="Applying WCS corrections",
-                total=len(files),
+                    ascii=True,
+                    desc="Applying WCS corrections",
+                    total=len(files),
             ):
                 successes.append(success)
 
@@ -129,8 +133,8 @@ class ApplyWCSAdjustStep:
         return successes
 
     def parallel_wcs_adjust(
-        self,
-        file,
+            self,
+            file,
     ):
         """Parallelise applying WCS adjustments
 
@@ -160,6 +164,9 @@ class ApplyWCSAdjustStep:
                       'name': model_name},
             )
 
+            # Check if we're NIRCam
+            is_nircam = fnmatch(file_short, f"*{band_exts['nircam']}")
+
             # Pull out the info we need to shift. If we have both
             # dithers ungrouped and grouped, prefer the ungrouped
             # ones
@@ -172,8 +179,47 @@ class ApplyWCSAdjustStep:
             visit_found = False
             for visit in [visit_ungrouped, visit_grouped]:
                 if not visit_found:
-                    if visit in self.wcs_adjust["wcs_adjust"]:
-                        wcs_adjust_vals = self.wcs_adjust["wcs_adjust"][visit]
+
+                    adjust_found = False
+                    for adjust in self.wcs_adjust["wcs_adjust"]:
+
+                        if adjust_found:
+                            continue
+
+                        # If we have a degrouped NIRCam module adjust, then edit this to
+                        # look more like the file name
+                        adjust_is_nircam_degrouped = fnmatch(adjust, f"*{band_exts['nircam']}")
+                        adjust_edit = copy.deepcopy(adjust)
+
+                        # If we've got a degrouped adjust, then split off this bit
+                        adjust_split = adjust.split("_")
+                        if adjust_is_nircam_degrouped:
+                            adjust_edit = "_".join(adjust_split[:-1])
+
+                        # Now, check this against the visit, and if this doesn't match,
+                        # continue
+                        if not adjust_edit == visit:
+                            continue
+
+                        # If they're both NIRCam, then we care about the
+                        # particular module
+                        if adjust_is_nircam_degrouped and is_nircam:
+                            adjust_module = re.findall("nrc([ab])",
+                                                       adjust_split[-1]
+                                                       )
+                            if len(adjust_module) > 0:
+                                adjust_module = adjust_module[0]
+
+                            file_module = re.findall("nrc([ab])",
+                                                     file_short
+                                                     )
+                            if len(file_module) > 0:
+                                file_module = file_module[0]
+
+                            if not adjust_module == file_module:
+                                continue
+
+                        wcs_adjust_vals = self.wcs_adjust["wcs_adjust"][adjust]
 
                         try:
                             matrix = wcs_adjust_vals["matrix"]
@@ -185,6 +231,7 @@ class ApplyWCSAdjustStep:
                         except KeyError:
                             shift = [0, 0]
 
+                        adjust_found = True
                         visit_found = True
 
             if not visit_found:

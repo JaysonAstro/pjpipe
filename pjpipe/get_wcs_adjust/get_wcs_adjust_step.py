@@ -6,6 +6,7 @@ import multiprocessing as mp
 import os
 import shutil
 import warnings
+from fnmatch import fnmatch
 from functools import partial
 
 import numpy as np
@@ -21,7 +22,7 @@ from stdatamodels.jwst import datamodels
 from tqdm import tqdm
 
 from ..utils import get_band_type, fwhms_pix, parse_parameter_dict, recursive_setattr, make_stacked_image, \
-    reproject_image, get_pixscale
+    reproject_image, get_pixscale, band_exts
 
 from .custom_catalogs import constrained_diffusion_catalog
 
@@ -104,6 +105,7 @@ class GetWCSAdjustStep:
             method="tweakreg",
             alignment_catalogs=None,
             group_dithers=None,
+            degroup_nircam_modules=False,
             tweakreg_parameters=None,
             reproject_func="interp",
             overwrite=False,
@@ -143,6 +145,10 @@ class GetWCSAdjustStep:
             group_dithers: Which band type (e.g. nircam) to group
                 up dithers for and find a single correction. Defaults
                 to None, which won't group up anything
+            degroup_nircam_modules: Whether to degroup NIRCam A and B
+                modules. Currently, the WCS is inconsistent between the two,
+                so should probably be set to True if you see "ghosting" in the final
+                mosaic. Defaults to False
             tweakreg_parameters: Dictionary of parameters to pass to tweakreg.
                 Defaults to None, which will use observatory defaults
             reproject_func: Which reproject function to use. Defaults to 'interp',
@@ -184,6 +190,7 @@ class GetWCSAdjustStep:
         self.method = method
         self.alignment_catalogs = alignment_catalogs
         self.group_dithers = group_dithers
+        self.degroup_nircam_modules = degroup_nircam_modules
         self.tweakreg_parameters = tweakreg_parameters
         self.reproject_func = reproject_func
         self.overwrite = overwrite
@@ -318,7 +325,7 @@ class GetWCSAdjustStep:
         in_files.sort()
         input_models = [datamodels.open(in_file) for in_file in in_files]
         
-        #Adding this garbage in here to allow for custom catalogs
+        # Adding this garbage in here to allow for custom catalogs
         # Noting that this the catalog needs to have two columns 'x' and 'y' 
         # or 'xcentroid' and 'ycentroid'
 
@@ -343,6 +350,23 @@ class GetWCSAdjustStep:
         if band_type in self.group_dithers:
             for model in asn_file._models:
                 model.meta.observation.exposure_number = "1"
+                model.meta.group_id = ""
+
+        # Degroup the NIRCam modules, if we're doing that
+        if band_type in "nircam" and self.degroup_nircam_modules:
+            for i, model in enumerate(asn_file._models):
+
+                module = model.meta.instrument.module.strip().lower()
+
+                exp_no = int(model.meta.observation.exposure_number)
+                if module == "a":
+                    exp_add = 99
+                elif module == "b":
+                    exp_add = 100
+                else:
+                    raise ValueError("Expecting module to either be A or B")
+
+                model.meta.observation.exposure_number = str(exp_no + exp_add)
                 model.meta.group_id = ""
 
         # If we only have one group, this won't do anything so just skip
@@ -798,11 +822,18 @@ class GetWCSAdjustStep:
                         # dithers grouped or not
                         out_split = os.path.split(output_file)[-1]
 
+                        # Check if we're NIRCam
+                        is_nircam = fnmatch(out_split, f"*{band_exts['nircam']}")
+
                         band_type = aligned_model.meta.instrument.name.strip().lower()
                         if band_type in self.group_dithers:
                             visit = out_split.split("_")[0]
                         else:
                             visit = "_".join(out_split.split("_")[:3])
+
+                        # Also include if we're degrouping NIRCam modules
+                        if is_nircam and self.degroup_nircam_modules:
+                            visit = f"{visit}_{out_split.split('_')[3]}"
 
                     except IndexError:
                         continue
