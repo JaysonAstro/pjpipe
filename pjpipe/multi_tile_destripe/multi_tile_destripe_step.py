@@ -407,8 +407,6 @@ class MultiTileDestripeStep:
         )
         files.sort()
 
-        # files = files[:16:4]
-
         # Ensure we're not wasting processes
         procs = np.nanmin([self.procs, len(files)])
 
@@ -1019,16 +1017,7 @@ class MultiTileDestripeStep:
             # data here and correct the average image
             if do_large_scale:
 
-                # Reproject the smoothed data
-                data_avg_smooth = r_func(
-                    (self.data_avg_smooth, self.optimal_wcs),
-                    wcs,
-                    return_footprint=False,
-                )
-
-                diff_smooth = data_avg - data_avg_smooth
-
-                # Also reproject the mask, casting to bool. This needs to use
+                # Reproject the mask, casting to bool. This needs to use
                 # reproject_interp, so we can keep whole numbers
                 mask_smooth = reproject_interp(
                     (self.data_avg_mask, self.optimal_wcs),
@@ -1038,24 +1027,38 @@ class MultiTileDestripeStep:
                 )
                 mask_smooth = np.array(mask_smooth, dtype=bool)
 
-                # Get the low-level stripes left in the data
-                stripes_smooth = sigma_clipped_stats(
-                    diff_smooth,
-                    mask=mask_smooth,
-                    sigma=self.sigma,
-                    maxiters=self.maxiters,
-                    axis=1,
-                )[1]
+                # If we have everything masked, then don't do the diff
+                do_smooth_subtraction = not np.all(mask_smooth)
 
-                mask = np.isnan(stripes_smooth)
-                # Only interp if we have a) some NaNs but not b) all NaNs
-                if 0 < np.sum(mask) < len(stripes_smooth):
-                    stripes_smooth[mask] = np.interp(np.flatnonzero(mask),
-                                                     np.flatnonzero(~mask),
-                                                     stripes_smooth[~mask],
-                                                     )
+                if do_smooth_subtraction:
 
-                data_avg = data_avg - stripes_smooth[:, np.newaxis]
+                    # Reproject the smoothed data
+                    data_avg_smooth = r_func(
+                        (self.data_avg_smooth, self.optimal_wcs),
+                        wcs,
+                        return_footprint=False,
+                    )
+
+                    diff_smooth = data_avg - data_avg_smooth
+
+                    # Get the low-level stripes left in the data
+                    stripes_smooth = sigma_clipped_stats(
+                        diff_smooth,
+                        mask=mask_smooth,
+                        sigma=self.sigma,
+                        maxiters=self.maxiters,
+                        axis=1,
+                    )[1]
+
+                    mask = np.isnan(stripes_smooth)
+                    # Only interp if we have a) some NaNs but not b) all NaNs
+                    if 0 < np.sum(mask) < len(stripes_smooth):
+                        stripes_smooth[mask] = np.interp(np.flatnonzero(mask),
+                                                         np.flatnonzero(~mask),
+                                                         stripes_smooth[~mask],
+                                                         )
+
+                    data_avg = data_avg - stripes_smooth[:, np.newaxis]
 
             diff = data - data_avg
             diff -= np.nanmedian(diff)

@@ -9,6 +9,12 @@ from functools import partial
 
 from astropy.io import fits
 import gwcs
+
+try:
+    from gwcs.utils import make_fitswcs_transform
+except ImportError:
+    from gwcs.wcs.utils import make_fitswcs_transform
+
 import numpy as np
 from astropy.table import QTable, Table
 from astropy.wcs import WCS
@@ -66,7 +72,7 @@ def transform_wcs_gwcs(wcs):
     """
 
     hdr = wcs.to_header()
-    tform = gwcs.wcs.utils.make_fitswcs_transform(hdr)
+    tform = make_fitswcs_transform(hdr)
     new_gwcs = gwcs.WCS(forward_transform=tform, output_frame="world")
 
     return hdr, new_gwcs

@@ -1,6 +1,10 @@
 1.2.1 (Unreleased)
 ==================
 
+- Fix crash in ``multi_tile_destripe_step`` for heavily masked data when doing smoothing
+- Fix crash in ``astrometric_align_step`` with new gwcs updates
+- Fix crash in ``lv3`` step when degrouping NIRCam modules
+- Allow for degrouping of NIRCam modules in ``get_wcs_adjust_step`` and ``apply_wcs_adjust_step``
 - Fix for crash if trying to anchor without first aligning
 - Fix for crash if trying to PSF match without some combination of anchoring, aligning
 - Change how the level 3 step handles models for newer JWST versions
