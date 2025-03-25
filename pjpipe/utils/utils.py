@@ -43,11 +43,12 @@ PIXEL_SCALE_NAMES = ["XPIXSIZE", "CDELT1", "CD1_1", "PIXELSCL"]
 # Pixel scales
 jwst_pixel_scales = {
     "miri": 0.11,
+    "niriss": 0.066,
     "nircam_long": 0.063,
     "nircam_short": 0.031,
 }
 
-# All NIRCAM bands
+# All NIRCAM/NIRISS bands
 nircam_bands = [
     "F070W",
     "F090W",
@@ -95,7 +96,7 @@ miri_bands = [
 
 # FWHM of bands in pixels
 fwhms_pix = {
-    # NIRCAM
+    # NIRCAM/NIRISS
     "F070W": 0.987,
     "F090W": 1.103,
     "F115W": 1.298,
@@ -139,6 +140,7 @@ fwhms_pix = {
 
 band_exts = {
     "nircam": "nrc*",
+    "niriss": "nis",
     "miri": "mirimage",
 }
 
@@ -196,10 +198,22 @@ def get_band_type(
             NIRCam bands. Defaults to False
     """
 
+    if "bgr" in band:
+        band = band.replace("_bgr", "")
+
+    # Are we NIRISS?
+    is_niriss = False
+    if "niriss" in band:
+        band = band.replace("_niriss", "")
+        is_niriss = True
+
     if band in miri_bands:
         band_type = "miri"
     elif band in nircam_bands:
-        band_type = "nircam"
+        if is_niriss:
+            band_type = "niriss"
+        else:
+            band_type = "nircam"
     else:
         raise ValueError(f"band {band} unknown")
 
@@ -226,6 +240,25 @@ def get_band_ext(band):
     band_ext = band_exts[band_type]
 
     return band_ext
+
+def get_short_band_name(band):
+    """Get a stripped down short name for a band"""
+
+    band_short = copy.deepcopy(band)
+
+    # Strip background
+    if "_bgr" in band_short:
+        band_short = band_short.replace("_bgr")
+
+    # Strip instrument names
+    if "_niriss" in band_short:
+        band_short = band_short.replace("_niriss", "")
+    if "_nircam" in band_short:
+        band_short = band_short.replace("_nircam", "")
+    if "_miri" in band_short:
+        band_short = band_short.replace("_miri", "")
+
+    return band_short
 
 
 def get_default_args(func):

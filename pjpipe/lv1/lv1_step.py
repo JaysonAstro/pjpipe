@@ -241,6 +241,10 @@ class Lv1Step:
                 persist_file[-1] = "trapsfilled.fits"
                 persist_file = os.path.join(self.out_dir, "_".join(persist_file))
 
+                # If this doesn't exist, fall back to no persist file
+                if not os.path.exists(persist_file):
+                    persist_file = ""
+
             # Specify the name of the trapsfilled file
             detector1.persistence.input_trapsfilled = persist_file
 

@@ -31,6 +31,7 @@ from ..utils import (
     recursive_setattr,
     fwhms_pix,
     save_file,
+    get_short_band_name,
 )
 
 log = logging.getLogger("stpipe")
@@ -224,10 +225,11 @@ class Lv3Step:
         log.info("Building asn file")
 
         check_bgr = True
+        band_short = get_short_band_name(self.band)
 
-        # If we have NIRCam operating with parallel offs, switch off background checking
+        # If we have NIRCam/NIRISS operating with parallel offs, switch off background checking
         # else everything will be flagged as backgrounds
-        if self.band_type == "nircam" and self.bgr_check_type == "parallel_off":
+        if self.band_type in ["nircam", "niriss"] and self.bgr_check_type == "parallel_off":
             check_bgr = False
 
         asn_lv3_filename = os.path.join(
@@ -256,7 +258,7 @@ class Lv3Step:
             "asn_pool": "none",
             "products": [
                 {
-                    "name": f"{self.target.lower()}_{self.band_type}_lv3_{self.band.lower()}{self.bgr_ext}",
+                    "name": f"{self.target.lower()}_{self.band_type}_lv3_{band_short.lower()}{self.bgr_ext}",
                     "members": [],
                 }
             ],
@@ -296,9 +298,10 @@ class Lv3Step:
         log.info("Running level 3 pipeline")
 
         band_type, short_long = get_band_type(self.band, short_long_nircam=True)
+        band_short = get_short_band_name(self.band)
 
         # FWHM should be set per-band for both tweakreg and source catalogue
-        fwhm_pix = fwhms_pix[self.band]
+        fwhm_pix = fwhms_pix[band_short]
 
         # Set up to run lv3 pipeline
 
@@ -348,8 +351,19 @@ class Lv3Step:
         meta_params = {}
         for model in asn_file._models:
             model_name = model.meta.filename
-            meta_params[model_name] = [copy.deepcopy(model.meta.observation.exposure_number),
-                                       copy.deepcopy(model.meta.group_id),
+
+            if hasattr(model.meta.observation, "exposure_number"):
+                exp_no = copy.deepcopy(model.meta.observation.exposure_number)
+            else:
+                exp_no = ""
+
+            if hasattr(model.meta, "group_id"):
+                group_id = copy.deepcopy(model.meta.group_id)
+            else:
+                group_id = ""
+
+            meta_params[model_name] = [exp_no,
+                                       group_id,
                                        ]
 
         # Group up the dithers
@@ -420,7 +434,7 @@ class Lv3Step:
 
             # If there's no final name here, add it now
             if "name" not in asn_file._asn["products"][0]:
-                name = f"{self.target.lower()}_{self.band_type}_lv3_{self.band.lower()}{self.bgr_ext}"
+                name = f"{self.target.lower()}_{self.band_type}_lv3_{band_short.lower()}{self.bgr_ext}"
                 asn_file._asn["products"][0]["name"] = copy.deepcopy(name)
 
         del tweakreg
@@ -547,7 +561,7 @@ class Lv3Step:
 
             # If there's no final name here, add it now
             if "name" not in asn_file._asn["products"][0]:
-                name = f"{self.target.lower()}_{self.band_type}_lv3_{self.band.lower()}{self.bgr_ext}"
+                name = f"{self.target.lower()}_{self.band_type}_lv3_{band_short.lower()}{self.bgr_ext}"
                 asn_file._asn["products"][0]["name"] = copy.deepcopy(name)
 
         if use_model_library:
@@ -583,7 +597,7 @@ class Lv3Step:
             asn_file = ModelContainer([models[m] for m in models])
             asn_file = ModelLibrary(asn_file, on_disk=False)
             if "name" not in asn_file._asn["products"][0]:
-                name = f"{self.target.lower()}_{self.band_type}_lv3_{self.band.lower()}{self.bgr_ext}"
+                name = f"{self.target.lower()}_{self.band_type}_lv3_{band_short.lower()}{self.bgr_ext}"
                 asn_file._asn["products"][0]["name"] = copy.deepcopy(name)
 
         im3.run(asn_file)

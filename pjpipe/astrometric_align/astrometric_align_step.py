@@ -285,13 +285,9 @@ class AstrometricAlignStep:
             log.info("Step already run")
             return True
 
-        band = copy.deepcopy(self.band)
-        if self.is_bgr:
-            band += "_bgr"
-
         # If we're matching to pre-aligned image
-        if band in self.align_mapping:
-            success = self.align_to_aligned_image(band=band)
+        if self.band in self.align_mapping:
+            success = self.align_to_aligned_image()
 
         # If we're doing a more traditional tweakreg
         else:
@@ -314,15 +310,11 @@ class AstrometricAlignStep:
 
     def align_to_aligned_image(
         self,
-        band,
     ):
         """Align to a pre-aligned image
 
         This will align to a pre-aligned image, either using cross-correlation
         or by pulling out the shift values and matrix from tweakreg (default)
-
-        Args:
-            band: Band we're aligning
         """
 
         if self.reproject_func == "interp":
@@ -347,8 +339,8 @@ class AstrometricAlignStep:
 
         log.info("Aligning to pre-aligned image")
 
-        ref_band = self.align_mapping[band]
-        ref_band_type = get_band_type(ref_band.replace("_bgr", ""))
+        ref_band = self.align_mapping[self.band]
+        ref_band_type = get_band_type(ref_band)
 
         ref_hdu_name = os.path.join(
             self.target_dir,

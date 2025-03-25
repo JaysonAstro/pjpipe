@@ -349,12 +349,12 @@ class PJPipeline:
 
                 else:
                     for band_full in self.bands:
-                        if "bgr" in band_full:
+                        if "_bgr" in band_full:
                             is_bgr = True
-                            band = band_full.replace("_bgr", "")
                         else:
                             is_bgr = False
-                            band = copy.deepcopy(band_full)
+
+                        band = get_short_band_name(band_full)
 
                         band_dir = os.path.join(
                             target_dir,
@@ -370,7 +370,7 @@ class PJPipeline:
                             }
 
                         # Pull out the band type
-                        band_type = get_band_type(band)
+                        band_type = get_band_type(band_full)
 
                         # Pull out whether we will do this step for this particular band
                         # and science type
@@ -438,13 +438,13 @@ class PJPipeline:
                                 parameters=move_raw_params,
                                 func=MoveRawObsStep,
                                 target=target,
-                                band=band,
+                                band=band_full,
                                 max_level=1,
                             )
 
                             move_raw_obs = MoveRawObsStep(
                                 target=target,
-                                band=band,
+                                band=band_full,
                                 step_ext=in_step_ext,
                                 in_dir=self.raw_dir,
                                 out_dir=in_dir,
@@ -479,13 +479,13 @@ class PJPipeline:
                                 parameters=step_parameters,
                                 func=Lv1Step,
                                 target=target,
-                                band=band,
+                                band=band_full,
                                 max_level=0,
                             )
 
                             lv1 = Lv1Step(
                                 target=target,
-                                band=band,
+                                band=band_full,
                                 in_dir=in_dir,
                                 out_dir=out_dir,
                                 dr_version=self.version,
@@ -502,13 +502,13 @@ class PJPipeline:
                                 parameters=step_parameters,
                                 func=Lv2Step,
                                 target=target,
-                                band=band,
+                                band=band_full,
                                 max_level=0,
                             )
 
                             lv2 = Lv2Step(
                                 target=target,
-                                band=band,
+                                band=band_full,
                                 in_dir=in_dir,
                                 out_dir=out_dir,
                                 dr_version=self.version,
@@ -524,7 +524,7 @@ class PJPipeline:
                                 parameters=step_parameters,
                                 func=SingleTileDestripeStep,
                                 target=target,
-                                band=band,
+                                band=band_full,
                             )
 
                             # If we're going from lv1, then this will be a rate file,
@@ -546,7 +546,7 @@ class PJPipeline:
                                 parameters=step_parameters,
                                 func=LyotMaskStep,
                                 target=target,
-                                band=band,
+                                band=band_full,
                             )
 
                             lyot_mask = LyotMaskStep(
@@ -563,7 +563,7 @@ class PJPipeline:
                                 parameters=step_parameters,
                                 func=LyotSeparateStep,
                                 target=target,
-                                band=band,
+                                band=band_full,
                             )
 
                             lyot_separate = LyotSeparateStep(
@@ -580,7 +580,7 @@ class PJPipeline:
                                 parameters=step_parameters,
                                 func=MultiTileDestripeStep,
                                 target=target,
-                                band=band,
+                                band=band_full,
                             )
 
                             multi_tile_destripe = MultiTileDestripeStep(
@@ -597,7 +597,7 @@ class PJPipeline:
                                 parameters=step_parameters,
                                 func=ApplyWCSAdjustStep,
                                 target=target,
-                                band=band,
+                                band=band_full,
                             )
 
                             wcs_adjust_file = os.path.join(
@@ -621,7 +621,7 @@ class PJPipeline:
                                 parameters=step_parameters,
                                 func=LevelMatchStep,
                                 target=target,
-                                band=band,
+                                band=band_full,
                             )
 
                             level_match = LevelMatchStep(
@@ -629,7 +629,7 @@ class PJPipeline:
                                 out_dir=out_dir,
                                 step_ext=in_step_ext,
                                 procs=self.procs,
-                                band=band,
+                                band=band_full,
                                 **kws,
                             )
                             step_result = level_match.do_step()
@@ -639,7 +639,7 @@ class PJPipeline:
                                 parameters=step_parameters,
                                 func=PSFModelStep,
                                 target=target,
-                                band=band,
+                                band=band_full,
                             )
 
                             psf_model = PSFModelStep(
@@ -656,13 +656,13 @@ class PJPipeline:
                                 parameters=step_parameters,
                                 func=Lv3Step,
                                 target=target,
-                                band=band,
+                                band=band_full,
                                 max_level=0,
                             )
 
                             lv3 = Lv3Step(
                                 target=target,
-                                band=band,
+                                band=band_full,
                                 in_dir=in_dir,
                                 out_dir=out_dir,
                                 dr_version=self.version,
@@ -678,12 +678,12 @@ class PJPipeline:
                                 parameters=step_parameters,
                                 func=AstrometricCatalogStep,
                                 target=target,
-                                band=band,
+                                band=band_full,
                                 max_level=0,
                             )
 
                             astrometric_catalog = AstrometricCatalogStep(
-                                target=target, band=band, in_dir=in_dir, **kws
+                                target=target, band=band_full, in_dir=in_dir, **kws
                             )
                             step_result = astrometric_catalog.do_step()
 
@@ -700,13 +700,13 @@ class PJPipeline:
                                 parameters=step_parameters,
                                 func=AstrometricAlignStep,
                                 target=target,
-                                band=band,
+                                band=band_full,
                                 max_level=0,
                             )
 
                             astrometric_catalog = AstrometricAlignStep(
                                 target=target,
-                                band=band,
+                                band=band_full,
                                 target_dir=target_dir,
                                 in_dir=in_dir,
                                 is_bgr=is_bgr,
@@ -729,13 +729,13 @@ class PJPipeline:
                                 parameters=step_parameters,
                                 func=MosaicIndividualFieldsStep,
                                 target=target,
-                                band=band,
+                                band=band_full,
                                 max_level=0,
                             )
 
                             mosaic_individual_fields = MosaicIndividualFieldsStep(
                                 target=target,
-                                band=band,
+                                band=band_full,
                                 in_dir=mosaic_in_dir,
                                 out_dir=out_dir,
                                 procs=self.procs,

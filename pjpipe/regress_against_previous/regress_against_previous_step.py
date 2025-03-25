@@ -211,6 +211,7 @@ class RegressAgainstPreviousStep:
 
         for key in [
             "nircam",
+            "niriss",
             "miri",
         ]:
             idx = [
@@ -276,6 +277,7 @@ class RegressAgainstPreviousStep:
         fancy_name = {
             "miri": "MIRI",
             "nircam": "NIRCam",
+            "niriss": "NIRISS",
         }[key]
 
         log.info(f"Plotting up {key}")

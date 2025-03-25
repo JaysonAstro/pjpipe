@@ -171,9 +171,9 @@ class Lv2Step:
 
         check_bgr = True
 
-        # If we have NIRCam operating with parallel offs, switch off background checking
+        # If we have NIRCam/NIRISS operating with parallel offs, switch off background checking
         # else everything will be flagged as backgrounds
-        if self.band_type == "nircam" and self.bgr_check_type == "parallel_off":
+        if self.band_type in ["nircam", "niriss"] and self.bgr_check_type == "parallel_off":
             check_bgr = False
 
         tab = get_obs_table(
