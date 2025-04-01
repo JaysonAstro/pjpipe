@@ -1031,19 +1031,28 @@ def do_jwst_convolution(
 
 def level_data(
         im,
+        transpose=False,
 ):
     """Level overlaps in NIRCAM amplifiers
 
     Args:
         im: Input datamodel
+        transpose: Whether to transpose the data. Defaults to False
     """
 
     data = copy.deepcopy(im.data)
+    err = copy.deepcopy(im.err)
+    dq = copy.deepcopy(im.dq)
+
+    if transpose:
+        data = data.T
+        err = err.T
+        dq = dq.T
 
     quadrant_size = data.shape[1] // 4
 
-    dq_mask = get_dq_bit_mask(dq=im.dq)
-    dq_mask = dq_mask | ~np.isfinite(im.data) | ~np.isfinite(im.err) | (im.data == 0)
+    dq_mask = get_dq_bit_mask(dq=dq)
+    dq_mask = dq_mask | ~np.isfinite(data) | ~np.isfinite(err) | (data == 0)
 
     for i in range(3):
         quad_1 = data[:, i * quadrant_size: (i + 1) * quadrant_size][
@@ -1072,6 +1081,10 @@ def level_data(
             delta = sigma_clipped_stats(diff, maxiters=None)[1]
 
         data[:, (i + 1) * quadrant_size: (i + 2) * quadrant_size] += delta
+
+    # Undo the transposition, if needed
+    if transpose:
+        data = data.T
 
     return data
 

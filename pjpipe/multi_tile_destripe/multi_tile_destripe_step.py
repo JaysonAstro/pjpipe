@@ -51,11 +51,15 @@ ALLOWED_REPROJECT_FUNCS = [
 ]
 
 
-def get_rotation_angle(wcs):
+def get_rotation_angle(wcs,
+                       transpose=False,
+                       ):
     """Get rotation from a WCS instance
 
     Args:
         wcs: WCS instance
+        transpose: Whether the data should be transposed so stripes
+            run left to right. Defaults to False
     """
 
     pc = np.dot(np.diag(wcs.wcs.get_cdelt()), wcs.wcs.get_pc())
@@ -64,6 +68,9 @@ def get_rotation_angle(wcs):
                        pc[0, 0],
                        )
     angle = (north * u.rad).to(u.deg).value
+
+    if transpose:
+        angle += 90
 
     return angle
 
@@ -570,7 +577,22 @@ class MultiTileDestripeStep:
                     wcs = im.meta.wcs.to_fits_sip()
                     w = WCS(wcs)
 
-                    indiv_rots.append(get_rotation_angle(w))
+                    # Get the slow axis (i.e. the one to apply the destriping along)
+                    if hasattr(im.meta.subarray, "slowaxis"):
+                        slow_axis = abs(im.meta.subarray.slowaxis)
+
+                    # If we can't find the slow axis, then just fall back to doing nothing
+                    else:
+                        slow_axis = 2
+
+                    transpose = False
+                    if slow_axis == 1:
+                        transpose = True
+
+                    indiv_rots.append(get_rotation_angle(w,
+                                                         transpose=transpose,
+                                                         )
+                                      )
 
                     # Also get the filter scale, if necessary
                     if self.large_scale_filter_scale is None:
@@ -689,7 +711,7 @@ class MultiTileDestripeStep:
                             crds_context = crds.get_default_context()
 
                         crds_dict = {
-                            "INSTRUME": "NIRCAM",
+                            "INSTRUME": im.meta.instrument.name,
                             "DETECTOR": im.meta.instrument.detector,
                             "FILTER": im.meta.instrument.filter,
                             "PUPIL": im.meta.instrument.pupil,
@@ -985,6 +1007,24 @@ class MultiTileDestripeStep:
             with datamodels.open(file) as model:
                 file_name = model.meta.filename
 
+                # Get the slow axis (i.e. the one to apply the destriping along)
+                if hasattr(model.meta.subarray, "slowaxis"):
+                    slow_axis = abs(model.meta.subarray.slowaxis)
+
+                # If we can't find the slow axis, then just fall back to doing nothing
+                else:
+                    slow_axis = 2
+
+                # Accounting here, the axes we subtract along will be different
+                # depending on how things are happening
+                transpose = False
+                vertical_axis = 0
+                horizontal_axis = 1
+                if slow_axis == 1:
+                    transpose = True
+                    vertical_axis = 1
+                    horizontal_axis = 0
+
                 quadrants = copy.deepcopy(self.quadrants)
 
                 # If we're in subarray mode or doing large-scale, turn off quadrants
@@ -993,9 +1033,12 @@ class MultiTileDestripeStep:
                 if do_large_scale:
                     quadrants = False
 
-                # If we're not in subarray mode, level everything out
-                else:
-                    model.data = level_data(model)
+                # Only level if we're not doing vertical subtraction, otherwise this should
+                # be taken care of
+                if quadrants and not self.do_vertical_subtraction:
+                    model.data = level_data(model,
+                                            transpose=transpose,
+                                            )
 
                 dq_bit_mask = get_dq_bit_mask(model.dq)
 
@@ -1047,7 +1090,7 @@ class MultiTileDestripeStep:
                         mask=mask_smooth,
                         sigma=self.sigma,
                         maxiters=self.maxiters,
-                        axis=1,
+                        axis=horizontal_axis,
                     )[1]
 
                     mask = np.isnan(stripes_smooth)
@@ -1058,7 +1101,10 @@ class MultiTileDestripeStep:
                                                          stripes_smooth[~mask],
                                                          )
 
-                    data_avg = data_avg - stripes_smooth[:, np.newaxis]
+                    if transpose:
+                        data_avg = data_avg - stripes_smooth[np.newaxis, :]
+                    else:
+                        data_avg = data_avg - stripes_smooth[:, np.newaxis]
 
             diff = data - data_avg
             diff -= np.nanmedian(diff)
@@ -1074,7 +1120,7 @@ class MultiTileDestripeStep:
                     mask=mask_diff,
                     sigma=self.sigma,
                     maxiters=self.maxiters,
-                    axis=0,
+                    axis=vertical_axis,
                 )[1]
 
                 # Centre around 0, replace NaNs with nearest value
@@ -1088,7 +1134,10 @@ class MultiTileDestripeStep:
                                                 stripes_y[~mask],
                                                 )
 
-                stripes_arr += stripes_y[np.newaxis, :]
+                if transpose:
+                    stripes_arr += stripes_y[:, np.newaxis]
+                else:
+                    stripes_arr += stripes_y[np.newaxis, :]
 
             stripes_x_2d = np.zeros_like(stripes_arr)
 
@@ -1098,12 +1147,12 @@ class MultiTileDestripeStep:
                 mask=mask_diff,
                 sigma=self.sigma,
                 maxiters=self.maxiters,
-                axis=1,
+                axis=horizontal_axis,
             )[1]
             stripes_x_full[stripes_x_full == 0] = np.nan
 
             if quadrants:
-                quadrant_size = stripes_arr.shape[1] // 4
+                quadrant_size = stripes_arr.shape[horizontal_axis] // 4
 
                 for quadrant in range(4):
                     idx_slice = slice(
@@ -1111,20 +1160,28 @@ class MultiTileDestripeStep:
                     )
 
                     # Sigma-clip the diff
-                    diff_quadrants = (
-                            diff[:, idx_slice] - stripes_arr[:, idx_slice]
-                    )
-                    mask_quadrants = mask_diff[:, idx_slice]
+
+                    if transpose:
+                        diff_quadrants = (
+                                diff[idx_slice, :] - stripes_arr[idx_slice, :]
+                        )
+                        mask_quadrants = mask_diff[idx_slice, :]
+                    else:
+                        diff_quadrants = (
+                                diff[:, idx_slice] - stripes_arr[:, idx_slice]
+                        )
+                        mask_quadrants = mask_diff[:, idx_slice]
+
                     stripes_x = sigma_clipped_stats(
                         diff_quadrants,
                         mask=mask_quadrants,
                         sigma=self.sigma,
                         maxiters=self.maxiters,
-                        axis=1,
+                        axis=horizontal_axis,
                     )[1]
                     stripes_x[stripes_x == 0] = np.nan
 
-                    mask_sum = np.nansum(~np.asarray(mask_quadrants, dtype=bool), axis=1)
+                    mask_sum = np.nansum(~np.asarray(mask_quadrants, dtype=bool), axis=horizontal_axis)
                     too_masked_idx = np.where(mask_sum < quadrant_size * self.min_mask_frac)
 
                     # For anything with less than the requisite amount of unmasked pixels, fall
@@ -1143,7 +1200,10 @@ class MultiTileDestripeStep:
                     # Centre around 0, since we've corrected for steps between amplifiers
                     stripes_x -= np.nanmedian(stripes_x)
 
-                    stripes_x_2d[:, idx_slice] += stripes_x[:, np.newaxis]
+                    if transpose:
+                        stripes_x_2d[idx_slice, :] += stripes_x[np.newaxis, :]
+                    else:
+                        stripes_x_2d[:, idx_slice] += stripes_x[:, np.newaxis]
 
             else:
 
@@ -1159,7 +1219,10 @@ class MultiTileDestripeStep:
                                                      stripes_x_full[~mask],
                                                      )
 
-                stripes_x_2d += stripes_x_full[:, np.newaxis]
+                if transpose:
+                    stripes_x_2d += stripes_x_full[np.newaxis, :]
+                else:
+                    stripes_x_2d += stripes_x_full[:, np.newaxis]
 
             # Centre around 0 one last time
             stripes_x_2d -= np.nanmedian(stripes_x_2d)

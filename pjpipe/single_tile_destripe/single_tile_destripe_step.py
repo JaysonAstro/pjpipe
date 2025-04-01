@@ -154,7 +154,6 @@ def butterworth_filter(
                   data.shape[0] // 4: -data.shape[0] // 4,
                   data.shape[1] // 4: -data.shape[1] // 4,
                   ]
-    # data_filter[idx] = np.random.normal(loc=0, scale=data_std, size=len(idx[0]))
 
     # Get rid of the high S/N stuff, replace with median
     data_filter[idx] = np.nan
@@ -392,10 +391,26 @@ class SingleTileDestripeStep:
                 # Force off quadrants if we're in subarray mode
                 quadrants = False
 
+            # Get the slow axis (i.e. the one to apply the destriping along)
+            if hasattr(im.meta.subarray, "slowaxis"):
+                slow_axis = abs(im.meta.subarray.slowaxis)
+
+            # If we can't find the slow axis, then just fall back to doing nothing
+            else:
+                slow_axis = 2
+
+            # If the slow axis is 1, then transpose the various arrays so the stripes
+            # run how the code expects
+            transpose = False
+            if slow_axis == 1:
+                transpose = True
+
             # Only level if we're not doing vertical subtraction, otherwise this should
             # be taken care of
             if quadrants and not self.vertical_subtraction:
-                im.data = level_data(im)
+                im.data = level_data(im,
+                                     transpose=transpose,
+                                     )
 
             full_noise_model = np.zeros_like(im.data)
 
@@ -405,6 +420,7 @@ class SingleTileDestripeStep:
                     im=im,
                     prev_noise_model=full_noise_model,
                     is_subarray=is_subarray,
+                    transpose=transpose,
                 )
 
             if self.destriping_method == "row_median":
@@ -413,13 +429,16 @@ class SingleTileDestripeStep:
                     prev_noise_model=full_noise_model,
                     out_name=out_name,
                     quadrants=quadrants,
+                    transpose=transpose,
                 )
             elif self.destriping_method == "median_filter":
                 full_noise_model += self.run_median_filter(
                     im=im,
                     prev_noise_model=full_noise_model,
                     out_name=out_name,
+                    is_subarray=is_subarray,
                     quadrants=quadrants,
+                    transpose=transpose,
                 )
             elif self.destriping_method == "remstripe":
                 full_noise_model += self.run_remstriping(
@@ -428,6 +447,7 @@ class SingleTileDestripeStep:
                     out_name=out_name,
                     is_subarray=is_subarray,
                     quadrants=quadrants,
+                    transpose=transpose,
                 )
             elif self.destriping_method == "smooth":
                 full_noise_model += self.run_smooth(
@@ -436,6 +456,7 @@ class SingleTileDestripeStep:
                     out_name=out_name,
                     is_subarray=is_subarray,
                     quadrants=quadrants,
+                    transpose=transpose,
                 )
             elif self.destriping_method == "pca":
                 pca_dir = os.path.join(
@@ -456,6 +477,7 @@ class SingleTileDestripeStep:
                     out_name=out_name,
                     is_subarray=is_subarray,
                     quadrants=quadrants,
+                    transpose=transpose,
                 )
             else:
                 raise NotImplementedError(
@@ -488,6 +510,7 @@ class SingleTileDestripeStep:
             im,
             prev_noise_model,
             is_subarray=False,
+            transpose=False,
     ):
         """Median filter subtraction of columns (optional diffuse emission filtering)
 
@@ -496,20 +519,30 @@ class SingleTileDestripeStep:
             prev_noise_model: Already calculated noise model, to subtract before
                 doing vertical subtraction
             is_subarray: Whether the image is a subarray. Defaults to False
+            transpose: Whether to transpose the data. Defaults to False
         """
 
         im = copy.deepcopy(im)
         if self.are_rate_files:
             im = apply_flat_field(im)
+
         data = copy.deepcopy(im.data)
+        err = copy.deepcopy(im.err)
+        dq = copy.deepcopy(im.dq)
+
+        # If transposing, do it here
+        if transpose:
+            data = data.T
+            err = err.T
+            dq = dq.T
+            prev_noise_model = prev_noise_model.T
+
+        data -= prev_noise_model
 
         full_noise_model = np.zeros_like(data)
 
         zero_idx = np.where(data == 0)
-
         data[zero_idx] = np.nan
-
-        data -= prev_noise_model
 
         mask = make_source_mask(
             data,
@@ -521,8 +554,8 @@ class SingleTileDestripeStep:
 
         dq_mask = get_dq_mask(
             data=data,
-            err=im.err,
-            dq=im.dq,
+            err=err,
+            dq=dq,
         )
 
         mask = mask | dq_mask
@@ -598,6 +631,10 @@ class SingleTileDestripeStep:
         else:
             full_noise_model += copy.deepcopy(vertical_noise_model)
 
+        # Undo the transposition
+        if transpose:
+            full_noise_model = full_noise_model.T
+
         return full_noise_model
 
     def run_remstriping(
@@ -607,6 +644,7 @@ class SingleTileDestripeStep:
             out_name,
             is_subarray=False,
             quadrants=True,
+            transpose=False,
     ):
         """Destriping based on the CEERS remstripe routine
 
@@ -619,6 +657,7 @@ class SingleTileDestripeStep:
             out_name: Output filename
             is_subarray: Whether image is subarray or not. Defaults to False
             quadrants: Whether to break out by quadrants. Defaults to True
+            transpose: Whether data has been transposed. Defaults to False
         """
 
         im = copy.deepcopy(im)
@@ -629,6 +668,15 @@ class SingleTileDestripeStep:
         zero_idx = np.where(im_data == 0)
 
         im_data[zero_idx] = np.nan
+
+        err = copy.deepcopy(im.err)
+        dq = copy.deepcopy(im.dq)
+
+        if transpose:
+            im_data = im_data.T
+            err = err.T
+            dq = dq.T
+            prev_noise_model = prev_noise_model.T
 
         im_data -= prev_noise_model
 
@@ -644,8 +692,8 @@ class SingleTileDestripeStep:
 
         dq_mask = get_dq_mask(
             im_data,
-            im.err,
-            im.dq,
+            err,
+            dq,
         )
 
         mask = mask | dq_mask
@@ -732,6 +780,17 @@ class SingleTileDestripeStep:
             # Bring everything back up to the median level
             trimmed_noise_model -= np.nanmedian(median_arr)
 
+        if not is_subarray:
+            full_noise_model[4:-4, 4:-4] = copy.deepcopy(trimmed_noise_model)
+        else:
+            full_noise_model = copy.deepcopy(trimmed_noise_model)
+
+        # Undo the transposition, if needed
+        if transpose:
+            data = data.T
+            mask = mask.T
+            full_noise_model = full_noise_model.T
+
         if self.plot_dir is not None and mask is not None:
             self.make_mask_plot(
                 data=data,
@@ -739,11 +798,6 @@ class SingleTileDestripeStep:
                 out_name=out_name,
                 filter_diffuse=self.filter_diffuse,
             )
-
-        if not is_subarray:
-            full_noise_model[4:-4, 4:-4] = copy.deepcopy(trimmed_noise_model)
-        else:
-            full_noise_model = copy.deepcopy(trimmed_noise_model)
 
         return full_noise_model
 
@@ -754,6 +808,7 @@ class SingleTileDestripeStep:
             out_name,
             is_subarray=False,
             quadrants=False,
+            transpose=False,
     ):
         """Smoothing-based de-noising
 
@@ -769,6 +824,7 @@ class SingleTileDestripeStep:
             out_name: Output filename
             is_subarray: Whether image is subarray or not. Defaults to False
             quadrants: Whether to break out by quadrants. Defaults to False
+            transpose: Whether data has been transposed. Defaults to False
         """
 
         im = copy.deepcopy(im)
@@ -779,6 +835,15 @@ class SingleTileDestripeStep:
         zero_idx = np.where(im_data == 0)
 
         im_data[zero_idx] = np.nan
+
+        err = copy.deepcopy(im.err)
+        dq = copy.deepcopy(im.dq)
+
+        if transpose:
+            im_data = im_data.T
+            err = err.T
+            dq = dq.T
+            prev_noise_model = prev_noise_model.T
 
         im_data -= prev_noise_model
 
@@ -794,8 +859,8 @@ class SingleTileDestripeStep:
 
         dq_mask = get_dq_mask(
             im_data,
-            im.err,
-            im.dq,
+            err,
+            dq,
         )
 
         mask = mask | dq_mask
@@ -876,6 +941,17 @@ class SingleTileDestripeStep:
                 trimmed_noise_model += med[:, np.newaxis] - med_conv[:, np.newaxis]
                 trimmed_noise_model -= np.nanmedian(trimmed_noise_model)
 
+        if not is_subarray:
+            full_noise_model[4:-4, 4:-4] = copy.deepcopy(trimmed_noise_model)
+        else:
+            full_noise_model = copy.deepcopy(trimmed_noise_model)
+
+        # Undo the transposition, if necessary
+        if transpose:
+            data = data.T
+            mask = mask.T
+            full_noise_model = full_noise_model.T
+
         if self.plot_dir is not None and mask is not None:
             self.make_mask_plot(
                 data=data,
@@ -883,11 +959,6 @@ class SingleTileDestripeStep:
                 out_name=out_name,
                 filter_diffuse=self.filter_diffuse,
             )
-
-        if not is_subarray:
-            full_noise_model[4:-4, 4:-4] = copy.deepcopy(trimmed_noise_model)
-        else:
-            full_noise_model = copy.deepcopy(trimmed_noise_model)
 
         return full_noise_model
 
@@ -899,6 +970,7 @@ class SingleTileDestripeStep:
             out_name,
             is_subarray=False,
             quadrants=True,
+            transpose=False,
     ):
         """PCA-based de-noising
 
@@ -915,6 +987,7 @@ class SingleTileDestripeStep:
             out_name: Output filename
             is_subarray: Whether image is subarray or not. Defaults to False
             quadrants: Whether to break out by quadrants. Defaults to True
+            transpose: Whether data has been transposed. Defaults to False
         """
 
         im = copy.deepcopy(im)
@@ -928,6 +1001,15 @@ class SingleTileDestripeStep:
 
         im_data[zero_idx] = np.nan
 
+        err = copy.deepcopy(im.err)
+        dq = copy.deepcopy(im.dq)
+
+        if transpose:
+            im_data = im_data.T
+            err = err.T
+            dq = dq.T
+            prev_noise_model = prev_noise_model.T
+
         im_data -= prev_noise_model
 
         mask = make_source_mask(
@@ -938,12 +1020,14 @@ class SingleTileDestripeStep:
             sigclip_iters=self.max_iters,
         )
 
-        dq_mask = get_dq_mask(data=im_data, err=im.err, dq=im.dq)
+        dq_mask = get_dq_mask(data=im_data,
+                              err=err,
+                              dq=dq,
+                              )
 
         mask = mask | dq_mask
 
         data = copy.deepcopy(im_data)
-        err = copy.deepcopy(im.err)
         original_mask = copy.deepcopy(mask)
 
         # Trim off the 0 rows/cols if we're using the full array
@@ -973,14 +1057,6 @@ class SingleTileDestripeStep:
         else:
             data_train = copy.deepcopy(data)
             mask_train = copy.deepcopy(mask)
-
-        if out_name:
-            self.make_mask_plot(
-                data=data_train,
-                mask=mask_train,
-                out_name=out_name,
-                filter_diffuse=self.filter_diffuse,
-            )
 
         if quadrants:
             noise_model_arr = np.zeros_like(data)
@@ -1123,6 +1199,20 @@ class SingleTileDestripeStep:
         )[1]
         full_noise_model -= noise_med
 
+        # Undo the transposition, if necessary
+        if transpose:
+            data_train = data_train.T
+            mask_train = mask_train.T
+            full_noise_model = full_noise_model.T
+
+        if out_name:
+            self.make_mask_plot(
+                data=data_train,
+                mask=mask_train,
+                out_name=out_name,
+                filter_diffuse=self.filter_diffuse,
+            )
+
         return full_noise_model
 
     def fit_robust_pca(
@@ -1214,6 +1304,7 @@ class SingleTileDestripeStep:
             out_name,
             prev_noise_model,
             quadrants=True,
+            transpose=False,
     ):
         """Calculate sigma-clipped median for each row. From Tom Williams.
 
@@ -1224,15 +1315,25 @@ class SingleTileDestripeStep:
                 destriping
             out_name: Output filename
             quadrants: Whether to break out by quadrants. Defaults to True
+            transpose: Whether data has been transposed. Defaults to False
         """
 
         im = copy.deepcopy(im)
         if self.are_rate_files:
             im = apply_flat_field(im)
+
         im_data = copy.deepcopy(im.data)
+        err = copy.deepcopy(im.err)
+        dq = copy.deepcopy(im.dq)
 
         zero_idx = np.where(im_data == 0)
         im_data[zero_idx] = np.nan
+
+        if transpose:
+            im_data = im_data.T
+            err = err.T
+            dq = dq.T
+            prev_noise_model = prev_noise_model.T
 
         im_data -= prev_noise_model
 
@@ -1245,8 +1346,8 @@ class SingleTileDestripeStep:
 
         dq_mask = get_dq_mask(
             data=im_data,
-            err=im.err,
-            dq=im.dq,
+            err=err,
+            dq=dq,
         )
 
         mask = mask | dq_mask
@@ -1299,6 +1400,12 @@ class SingleTileDestripeStep:
             # Bring everything back up to the median level
             full_noise_model -= np.nanmedian(median_arr)
 
+        # Undo the transposition
+        if transpose:
+            data = data.T
+            mask = mask.T
+            full_noise_model = full_noise_model.T
+
         if out_name is not None:
             self.make_mask_plot(
                 data=data,
@@ -1314,7 +1421,9 @@ class SingleTileDestripeStep:
             im,
             prev_noise_model,
             out_name,
+            is_subarray=False,
             quadrants=True,
+            transpose=False,
     ):
         """Run a series of filters over the row medians. From Mederic Boquien.
 
@@ -1323,7 +1432,9 @@ class SingleTileDestripeStep:
             prev_noise_model: Previously calculated noise model, to subtract before
                 destriping
             out_name: Output filename
+            is_subarray: Whether is subarray or not. Defaults to False
             quadrants: Whether to break out by quadrants. Defaults to True
+            transpose: Whether data has been transposed. Defaults to False
         """
 
         im = copy.deepcopy(im)
@@ -1334,7 +1445,18 @@ class SingleTileDestripeStep:
         zero_idx = np.where(im_data == 0)
         im_data[zero_idx] = np.nan
 
+        err = copy.deepcopy(im.err)
+        dq = copy.deepcopy(im.dq)
+
+        if transpose:
+            im_data = im_data.T
+            err = err.T
+            dq = dq.T
+            prev_noise_model = prev_noise_model.T
+
         im_data -= prev_noise_model
+
+        quadrant_size = im_data.shape[1] // 4
 
         full_noise_model = np.zeros_like(im_data)
 
@@ -1346,10 +1468,16 @@ class SingleTileDestripeStep:
         )
         dq_mask = get_dq_mask(
             data=im_data,
-            err=im.err,
-            dq=im.dq,
+            err=err,
+            dq=dq,
         )
         mask = mask | dq_mask
+
+        # Trim off the 0 rows/cols if we're using the full array
+        if not is_subarray:
+            im_data = im_data[4:-4, 4:-4]
+            dq_mask = dq_mask[4:-4, 4:-4]
+            mask = mask[4:-4, 4:-4]
 
         if self.filter_diffuse:
             data, mask = self.get_filter_diffuse(
@@ -1360,13 +1488,27 @@ class SingleTileDestripeStep:
         else:
             data = copy.deepcopy(im_data)
 
+        trimmed_noise_model = np.zeros_like(im_data)
+
         if quadrants:
-            quadrant_size = int(data.shape[1] / 4)
 
             # Calculate medians and apply
             for i in range(4):
-                data_quadrant = data[:, i * quadrant_size: (i + 1) * quadrant_size]
-                mask_quadrant = mask[:, i * quadrant_size: (i + 1) * quadrant_size]
+
+                if not is_subarray:
+                    if i == 0:
+                        idx_slice = slice(0, quadrant_size - 4)
+                    elif i == 3:
+                        idx_slice = slice(1532, 2040)
+                    else:
+                        idx_slice = slice(
+                            i * quadrant_size - 4, (i + 1) * quadrant_size - 4
+                        )
+                else:
+                    idx_slice = slice(i * quadrant_size, (i + 1) * quadrant_size)
+
+                data_quadrant = data[:, idx_slice]
+                mask_quadrant = mask[:, idx_slice]
 
                 mask_sum = np.nansum(~np.asarray(mask_quadrant, dtype=bool), axis=1)
                 too_masked_idx = np.where(mask_sum < quadrant_size * self.min_mask_frac)
@@ -1408,9 +1550,7 @@ class SingleTileDestripeStep:
                         mask=data_masked.mask,
                     )
 
-                    full_noise_model[
-                    :, i * quadrant_size: (i + 1) * quadrant_size
-                    ] += noise[:, np.newaxis]
+                    trimmed_noise_model[:, idx_slice] += noise[:, np.newaxis]
 
         else:
             data_mask = np.ma.array(copy.deepcopy(data), mask=copy.deepcopy(mask))
@@ -1434,7 +1574,18 @@ class SingleTileDestripeStep:
 
                 data_mask -= noise[:, np.newaxis]
 
-                full_noise_model += noise[:, np.newaxis]
+                trimmed_noise_model += noise[:, np.newaxis]
+
+        if not is_subarray:
+            full_noise_model[4:-4, 4:-4] += copy.deepcopy(trimmed_noise_model)
+        else:
+            full_noise_model += copy.deepcopy(trimmed_noise_model)
+
+        # Undo the transposition, if needed
+        if transpose:
+            data = data.T
+            mask = mask.T
+            full_noise_model = full_noise_model.T
 
         if out_name is not None:
             self.make_mask_plot(
