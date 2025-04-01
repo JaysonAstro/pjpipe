@@ -1,6 +1,8 @@
 1.2.1 (Unreleased)
 ==================
 
+- Add support for NIRISS
+- Fix crash in the persistence correction in ``lv1_step`` if some earlier observation is missing
 - Fix crash in ``multi_tile_destripe_step`` for heavily masked data when doing smoothing
 - Fix crash in ``astrometric_align_step`` with new gwcs updates
 - Fix crash in ``lv3`` step when degrouping NIRCam modules

@@ -59,7 +59,7 @@ def apply_flat_field(im):
         crds_context = crds.get_default_context()
 
     crds_dict = {
-        "INSTRUME": "NIRCAM",
+        "INSTRUME": im.meta.instrument.name,
         "DETECTOR": im.meta.instrument.detector,
         "FILTER": im.meta.instrument.filter,
         "PUPIL": im.meta.instrument.pupil,
@@ -192,9 +192,9 @@ class SingleTileDestripeStep:
             pca_reconstruct_components=10,
             overwrite=False,
     ):
-        """NIRCAM Destriping routines
+        """NIRCAM/NIRISS Destriping routines
 
-        Contains a number of routines to destripe NIRCAM data -- median filtering, PCA, and an equivalent of
+        Contains a number of routines to destripe NIRCAM or NIRISS data -- median filtering, PCA, and an equivalent of
         remstripe from the CEERS team
 
         Args:

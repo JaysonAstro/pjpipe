@@ -8,7 +8,7 @@ import shutil
 from stdatamodels.jwst import datamodels
 from tqdm import tqdm
 
-from ..utils import get_band_ext, get_band_type, save_file
+from ..utils import get_band_ext, get_band_type, save_file, get_short_band_name
 
 log = logging.getLogger("stpipe")
 log.addHandler(logging.NullHandler())
@@ -219,31 +219,41 @@ class MoveRawObsStep:
             if skip_file:
                 continue
 
+            # Get a short band name
+            band_short = get_short_band_name(self.band)
+
             if not os.path.exists(hdu_out_name) or self.overwrite:
                 with datamodels.open(raw_file) as im:
                     # Check we've got the right filter
                     hdu_filter = im.meta.instrument.filter
 
-                    if self.band_type == "nircam":
+                    if self.band_type in ["nircam", "niriss"]:
                         hdu_pupil = im.meta.instrument.pupil
 
                         pupil = "CLEAR"
-                        jwst_filter = copy.deepcopy(self.band)
+                        jwst_filter = copy.deepcopy(band_short)
 
-                        # For some NIRCAM filters, we need to distinguish filter/pupil.
+                        # For some NIRCAM/NIRISS filters, we need to distinguish filter/pupil.
                         # TODO: These may not be unique, so may need editing
-                        if self.band in ["F162M", "F164N"]:
-                            pupil = copy.deepcopy(self.band)
+                        if band_short in ["F162M", "F164N"]:
+                            pupil = copy.deepcopy(band_short)
                             jwst_filter = "F150W2"
-                        if self.band == "F323N":
-                            pupil = copy.deepcopy(self.band)
+                        if band_short == "F323N":
+                            pupil = copy.deepcopy(band_short)
                             jwst_filter = "F322W2"
-                        if self.band in ["F405N", "F466N", "F470N"]:
-                            pupil = copy.deepcopy(self.band)
+                        if band_short in ["F405N", "F466N", "F470N"]:
+                            pupil = copy.deepcopy(band_short)
                             jwst_filter = "F444W"
 
-                        if hdu_filter == jwst_filter and hdu_pupil == pupil:
+                        file_matched = False
 
+                        # Weirdly, NIRISS and NIRCam seem to be the other way round
+                        if hdu_filter == jwst_filter and hdu_pupil == pupil and self.band_type in ["nircam"]:
+                            file_matched = True
+                        if hdu_filter == pupil and hdu_pupil == jwst_filter and self.band_type in ["niriss"]:
+                            file_matched = True
+
+                        if file_matched:
                             save_file(im=im, out_name=hdu_out_name, dr_version=self.dr_version)
 
                     elif self.band_type == "miri":
