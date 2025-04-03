@@ -1,6 +1,9 @@
 1.2.1 (Unreleased)
 ==================
 
+- TODO: Keep track of expected stripe direction in ``multi_tile_destripe_step``
+- Trim off reference pixels for median filter in ``single_tile_destripe_step``
+- Keep track of expected stripe direction in ``single_tile_destripe_step``
 - Add support for NIRISS
 - Fix crash in the persistence correction in ``lv1_step`` if some earlier observation is missing
 - Fix crash in ``multi_tile_destripe_step`` for heavily masked data when doing smoothing
