@@ -757,7 +757,6 @@ def reproject_image(
         hdu_name = hdu_mapping[hdu_type]
 
         with fits.open(file) as hdu:
-            sci = copy.deepcopy(hdu["SCI"].data)
             data = copy.deepcopy(hdu[hdu_name].data)
             wcs = hdu["SCI"].header
             w_in = WCS(wcs)
@@ -766,7 +765,7 @@ def reproject_image(
     sig_mask = None
     if do_sigma_clip:
         sig_mask = make_source_mask(
-            sci,
+            data,
             mask=dq_bit_mask,
             dilate_size=7,
         )
