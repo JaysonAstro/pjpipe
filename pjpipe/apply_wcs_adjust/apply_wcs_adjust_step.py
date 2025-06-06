@@ -249,9 +249,6 @@ class ApplyWCSAdjustStep:
                     try:
                         update_fits_wcsinfo(
                             image_model,
-                            degree=6,
-                            max_pix_error=0.01,
-                            npoints=32,
                         )
                     except (ValueError, RuntimeError) as e:
                         log.warning(
