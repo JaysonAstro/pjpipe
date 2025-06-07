@@ -734,6 +734,8 @@ def reproject_image(
     if not stacked_image:
         with datamodels.open(file) as hdu:
 
+            sci = copy.deepcopy(hdu.data)
+
             dq_bit_mask = get_dq_bit_mask(hdu.dq)
 
             wcs = hdu.meta.wcs.to_fits_sip()
@@ -757,6 +759,7 @@ def reproject_image(
         hdu_name = hdu_mapping[hdu_type]
 
         with fits.open(file) as hdu:
+            sci = copy.deepcopy(hdu["SCI"].data)
             data = copy.deepcopy(hdu[hdu_name].data)
             wcs = hdu["SCI"].header
             w_in = WCS(wcs)
@@ -764,12 +767,14 @@ def reproject_image(
 
     sig_mask = None
     if do_sigma_clip:
-        sig_mask = make_source_mask(
-            data,
-            mask=dq_bit_mask,
-            dilate_size=7,
-        )
-        sig_mask = sig_mask.astype(int)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            sig_mask = make_source_mask(
+                sci,
+                mask=dq_bit_mask,
+                dilate_size=7,
+            )
+            sig_mask = sig_mask.astype(int)
 
     data[data == 0] = np.nan
 
