@@ -6,8 +6,8 @@ from importlib.metadata import version
 # Set the CRDS server URL before any imports
 os.environ["CRDS_SERVER_URL"] = "https://jwst-crds.stsci.edu"
 
-if sys.version_info < (3, 9):
-    raise ImportError("JWST requires Python 3.9 and above.")
+if sys.version_info < (3, 11):
+    raise ImportError("JWST requires Python 3.11 and above.")
 
 # Get the version
 __version__ = version(__name__)

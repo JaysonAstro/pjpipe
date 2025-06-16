@@ -9,7 +9,7 @@
 
 ![](docs/images/pjpipe_logo.jpg)
 
-**Note that this pipeline requires Python 3.9 or above**
+**Note that this pipeline requires Python 3.11 or above**
 
 PJPipe (the PHANGS-JWST-Pipeline) is a wrapper around the official 
 [STScI JWST Pipeline](https://jwst-pipeline.readthedocs.io/en/latest) 

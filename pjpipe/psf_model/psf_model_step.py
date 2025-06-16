@@ -10,7 +10,7 @@ import astropy.units as u
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import webbpsf
+import stpsf
 from astropy.coordinates import SkyCoord
 from astropy.stats import sigma_clipped_stats
 from astropy.wcs import WCS
@@ -539,7 +539,7 @@ class PSFModelStep:
 
         log.info("Generating PSF")
 
-        inst = webbpsf.setup_sim_to_match_file(
+        inst = stpsf.setup_sim_to_match_file(
             file,
             verbose=False,
         )
