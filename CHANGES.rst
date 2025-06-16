@@ -1,7 +1,8 @@
 1.2.1 (Unreleased)
 ==================
 
-- TODO: Keep track of expected stripe direction in ``multi_tile_destripe_step``
+- Imports update - now supports numpy>2.0!
+- Keep track of expected stripe direction in ``multi_tile_destripe_step``
 - Trim off reference pixels for median filter in ``single_tile_destripe_step``
 - Keep track of expected stripe direction in ``single_tile_destripe_step``
 - Add support for NIRISS

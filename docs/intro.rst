@@ -14,7 +14,7 @@ PJPipe
 .. image:: https://img.shields.io/badge/DOI-10.5281%20%2F%20zenodo.10458746-blue.svg?style=flat-square
    :target: https://zenodo.org/doi/10.5281/zenodo.10458746
 
-**Note that this pipeline requires Python 3.9 or above**
+**Note that this pipeline requires Python 3.11 or above**
 
 PJPipe (the PHANGS-JWST-Pipeline) is a wrapper around the official
 `STScI JWST Pipeline <https://jwst-pipeline.readthedocs.io/en/latest>`_,
