@@ -241,6 +241,7 @@ def get_band_ext(band):
 
     return band_ext
 
+
 def get_short_band_name(band):
     """Get a stripped down short name for a band"""
 
@@ -248,7 +249,7 @@ def get_short_band_name(band):
 
     # Strip background
     if "_bgr" in band_short:
-        band_short = band_short.replace("_bgr")
+        band_short = band_short.replace("_bgr", "")
 
     # Strip instrument names
     if "_niriss" in band_short:
