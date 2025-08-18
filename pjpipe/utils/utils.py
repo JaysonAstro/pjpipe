@@ -565,7 +565,7 @@ def parse_fits_to_table(
         # If the backgrounds are labelled differently in the target name
         elif check_type == "check_in_name":
             with datamodels.open(file) as im:
-                if background_name in im.meta.target.proposer_name.lower():
+                if background_name.strip().lower() in im.meta.target.proposer_name.strip().lower():
                     f_type = "bgr"
 
         # If we want to use some specific files within the science as observations
