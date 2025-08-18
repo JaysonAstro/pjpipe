@@ -1,6 +1,7 @@
 1.2.1 (Unreleased)
 ==================
 
+- Fix crash for background observations in ``get_short_band_name``
 - For background association, strip whitespace and lowercase for more robust matching
 - Imports update - now supports numpy>2.0!
 - Keep track of expected stripe direction in ``multi_tile_destripe_step``
