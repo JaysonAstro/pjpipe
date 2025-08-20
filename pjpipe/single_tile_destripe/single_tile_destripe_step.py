@@ -33,8 +33,7 @@ matplotlib.rcParams['mathtext.fontset'] = 'stix'
 matplotlib.rcParams['font.family'] = 'STIXGeneral'
 matplotlib.rcParams['font.size'] = 14
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 DESTRIPING_METHODS = [
     "row_median",

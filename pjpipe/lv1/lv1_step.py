@@ -15,8 +15,7 @@ from tqdm import tqdm
 
 from ..utils import attribute_setter, save_file
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 # Set OpenCV number of threads to 1 to avoid MP issues on newer Macbooks
 cv.setNumThreads(1)

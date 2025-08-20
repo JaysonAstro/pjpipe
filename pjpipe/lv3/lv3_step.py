@@ -34,8 +34,7 @@ from ..utils import (
     get_short_band_name,
 )
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 BGR_CHECK_TYPES = [
     "parallel_off",

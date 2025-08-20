@@ -1,7 +1,9 @@
+import logging
 import os
-import re
 import sys
+from datetime import datetime
 from importlib.metadata import version
+from logging.handlers import RotatingFileHandler
 
 # Set the CRDS server URL before any imports
 os.environ["CRDS_SERVER_URL"] = "https://jwst-crds.stsci.edu"
@@ -11,6 +13,20 @@ if sys.version_info < (3, 11):
 
 # Get the version
 __version__ = version(__name__)
+
+# Set up the logger
+log = logging.getLogger(__name__)
+dt = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+log_file = f"pjpipe_{dt}.log"
+log_level = "INFO"
+log_format = "%(asctime)s - %(levelname)s - %(message)s"
+logging.basicConfig(level=logging.INFO,
+                    format=log_format,
+                    handlers=[
+                        logging.FileHandler(log_file),
+                        logging.StreamHandler(),
+                    ]
+                    )
 
 from .apply_wcs_adjust import ApplyWCSAdjustStep
 from .astrometric_align import AstrometricAlignStep

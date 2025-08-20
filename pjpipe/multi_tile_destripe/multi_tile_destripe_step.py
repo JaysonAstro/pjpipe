@@ -31,8 +31,7 @@ matplotlib.rcParams['mathtext.fontset'] = 'stix'
 matplotlib.rcParams['font.family'] = 'STIXGeneral'
 matplotlib.rcParams['font.size'] = 14
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 ALLOWED_WEIGHT_METHODS = [
     "mean",

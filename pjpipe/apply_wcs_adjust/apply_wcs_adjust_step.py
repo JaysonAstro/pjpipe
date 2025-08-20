@@ -18,8 +18,7 @@ from tweakwcs.correctors import JWSTWCSCorrector
 
 from ..utils import band_exts
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 
 class ApplyWCSAdjustStep:

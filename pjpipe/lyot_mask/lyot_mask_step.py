@@ -15,8 +15,7 @@ from tqdm import tqdm
 
 from ..utils import get_dq_bit_mask
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 ALLOWED_METHODS = ["mask", "mask_overlap"]
 

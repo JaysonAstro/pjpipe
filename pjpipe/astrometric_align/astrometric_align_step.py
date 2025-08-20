@@ -39,8 +39,7 @@ ALLOWED_REPROJECT_FUNCS = [
     "exact",
 ]
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 
 def get_lv3_wcs(im):

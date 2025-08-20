@@ -10,8 +10,7 @@ from tqdm import tqdm
 
 from ..utils import get_band_ext, get_band_type, save_file, get_short_band_name
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 
 class MoveRawObsStep:
@@ -257,7 +256,7 @@ class MoveRawObsStep:
                             save_file(im=im, out_name=hdu_out_name, dr_version=self.dr_version)
 
                     elif self.band_type == "miri":
-                        if hdu_filter == self.band:
+                        if hdu_filter == band_short:
                             save_file(im=im, out_name=hdu_out_name, dr_version=self.dr_version)
 
                 del im

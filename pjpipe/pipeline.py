@@ -91,8 +91,7 @@ OUT_BAND_DIRS = {
     "release": None,
 }
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 
 class PJPipeline:

@@ -6,8 +6,7 @@ from photutils.detection import IRAFStarFinder
 
 from ..astrometric_catalog.constrained_diffusion import constrained_diffusion
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 
 def constrained_diffusion_catalog(datamodel,

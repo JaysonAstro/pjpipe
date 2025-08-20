@@ -26,8 +26,7 @@ from ..utils import get_band_type, fwhms_pix, parse_parameter_dict, recursive_se
 
 from .custom_catalogs import constrained_diffusion_catalog
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 RAD_TO_ARCSEC = 3600 * np.rad2deg(1)
 

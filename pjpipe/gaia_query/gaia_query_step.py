@@ -5,8 +5,7 @@ import astropy.units as u
 from astropy.coordinates import name_resolve
 from astroquery.gaia import Gaia
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 
 class GaiaQueryStep:
