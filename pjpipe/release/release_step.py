@@ -6,8 +6,7 @@ import glob
 from astropy.io import fits
 from tqdm import tqdm
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 
 class ReleaseStep:

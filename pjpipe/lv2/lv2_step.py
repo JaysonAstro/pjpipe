@@ -18,8 +18,7 @@ from stdatamodels.jwst import datamodels
 
 from ..utils import get_band_type, get_obs_table, attribute_setter, save_file
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 BGR_CHECK_TYPES = [
     "parallel_off",

@@ -23,8 +23,7 @@ from stdatamodels.jwst import datamodels
 from ..utils import get_dq_bit_mask, make_source_mask
 
 matplotlib.use("agg")
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 ALLOWED_METHODS = ["replace", "subtract"]
 

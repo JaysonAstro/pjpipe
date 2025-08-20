@@ -144,8 +144,7 @@ band_exts = {
     "miri": "mirimage",
 }
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 
 def get_pixscale(hdu):

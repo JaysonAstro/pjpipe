@@ -13,8 +13,7 @@ import numpy as np
 
 from ..utils import do_jwst_convolution
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 
 class PSFMatchingStep:

@@ -10,12 +10,11 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from photutils.detection import DAOStarFinder, IRAFStarFinder
 
-from ..utils import parse_parameter_dict, fwhms_pix, sigma_clip, recursive_setattr
+from ..utils import parse_parameter_dict, fwhms_pix, sigma_clip, recursive_setattr, get_short_band_name
 
 from .constrained_diffusion import constrained_diffusion
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 ALLOWED_STARFIND_METHODS = [
     "dao",
@@ -143,7 +142,9 @@ class AstrometricCatalogStep:
         mean, median, rms = sigma_clip(data, dq_mask=mask)
         threshold = median + snr * rms
 
-        kernel_fwhm = fwhms_pix[self.band]
+        # Make sure we only have the filter here
+        short_band = get_short_band_name(self.band)
+        kernel_fwhm = fwhms_pix[short_band]
 
         if self.starfind_method == "dao":
             finder = DAOStarFinder

@@ -12,8 +12,7 @@ from stdatamodels.jwst import datamodels
 
 from ..utils import parse_parameter_dict, recursive_setattr
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 
 class MosaicIndividualFieldsStep:

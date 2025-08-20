@@ -14,8 +14,7 @@ from tqdm import tqdm
 
 from ..utils import get_dq_bit_mask
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 # Rough lyot outline
 LYOT_I = slice(735, None)

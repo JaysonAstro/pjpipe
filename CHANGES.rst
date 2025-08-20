@@ -1,6 +1,10 @@
 1.2.1 (Unreleased)
 ==================
 
+- Fixed crash for ``astrometric_catalog`` for background observations
+- Fixed crash when filtering out guide stars
+- Fixed issue with background files in ``move_raw_obs_step``
+- Fixed logging, will now properly output to a log file
 - Fix crash for background observations in ``get_short_band_name``
 - For background association, strip whitespace and lowercase for more robust matching
 - Imports update - now supports numpy>2.0!

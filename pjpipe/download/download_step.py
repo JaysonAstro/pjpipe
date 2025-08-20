@@ -16,8 +16,7 @@ from requests.exceptions import ConnectionError, ChunkedEncodingError
 from stdatamodels.jwst import datamodels
 from tqdm import tqdm
 
-log = logging.getLogger("stpipe")
-log.addHandler(logging.NullHandler())
+log = logging.getLogger(__name__)
 
 
 def download(
@@ -437,7 +436,7 @@ class DownloadStep:
 
         # Filter out guide stars if requested
         if self.filter_gs:
-            mask = np.char.find(products["dataURI"], "_gs-") == -1
+            mask = ["_gs-" not in x for x in products["dataURI"]]
             products = products[mask]
 
         # Perform filtering if requested
