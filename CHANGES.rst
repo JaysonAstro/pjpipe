@@ -1,4 +1,4 @@
-1.2.1 (Unreleased)
+1.3.0 (2025-10-02)
 ==================
 
 - Fixed crash for ``astrometric_catalog`` for background observations
